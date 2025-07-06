@@ -33,11 +33,11 @@ pipeline{
             ], 
             credentialsId: 'nexus-credentials', 
             groupId: 'in.javahome', 
-            nexusUrl: '52.90.34.45:8081', 
+            nexusUrl: '192.168.124.129:8081', 
             nexusVersion: 'nexus3', 
             protocol: 'http', 
-            repository: 'spring-initial', 
-            version: '0.0.1'
+            repository: 'puspa-app', 
+            version: '1.0-SNAPSHOT'
             }
         }
 		stage('Deploy War file to Tommcat'){
