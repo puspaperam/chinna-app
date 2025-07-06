@@ -16,7 +16,7 @@ pipeline{
         }
         stage('Generate sonarqube-analysis'){
             steps{
-                withSonarQubeEnv(installationName: 'Sonar-Server-7.8', credentialsId: 'SONAR_TO') {
+                withSonarQubeEnv(installationName: 'Sonar-Server-7.9', credentialsId: 'sonar-code') {
                  sh 'mvn sonar:sonar'
                 }
             }
