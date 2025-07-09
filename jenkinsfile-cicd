@@ -1,56 +1,75 @@
-pipeline{
+pipeline {
     agent any
-    tools{
+
+    tools {
         maven 'maven-3.9'
     }
-    stages{
-        stage('checkout the code'){
-            steps{
-                git url:'https://github.com/bcreddydevops/chinna-app.git', branch: 'main'
+
+    environment {
+        REMOTE_USER = 'root'
+        REMOTE_HOST = '192.168.124.129'
+        REMOTE_TOMCAT = '/opt/tomcat'
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/puspaperam/chinna-app.git'
             }
         }
-        stage('build the code'){
-            steps{
-                sh 'mvn clean package'
+
+        stage('Build with Maven') {
+            steps {
+                bat 'mvn clean package'
             }
         }
-        stage('Generate sonarqube-analysis'){
-            steps{
-                withSonarQubeEnv(installationName: 'Sonar-Server-7.9', credentialsId: 'sonar-code') {
-                 sh 'mvn sonar:sonar'
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('Sonar-Server-7.9') {
+                    bat 'mvn sonar:sonar'
                 }
             }
         }
-        stage('Upload War file to Nexus'){
-            steps{
-             nexusArtifactUploader artifacts: [
-                 [
-                     artifactId: 'devops', 
-                     classifier: '', 
-                     file: 'target/hiring.war', 
-                     type: 'war'
-                ]
-            ], 
-            credentialsId: 'nexus-credentials', 
-            groupId: 'in.javahome', 
-            nexusUrl: '192.168.124.129:8081', 
-            nexusVersion: 'nexus3', 
-            protocol: 'http', 
-            repository: 'puspa-app', 
-            version: '1.0-SNAPSHOT'
+
+        stage('Upload WAR to Nexus') {
+            steps {
+                nexusArtifactUploader(
+                    artifacts: [[
+                        artifactId: 'hiring',
+                        classifier: '',
+                        file: 'target/hiring.war',
+                        type: 'war'
+                    ]],
+                    credentialsId: 'NEXUS-3',
+                    groupId: 'in.javahome',
+                    nexusUrl: '192.168.124.129:8081',
+                    nexusVersion: 'nexus3',
+                    protocol: 'http',
+                    repository: 'puspa-apps',
+                    version: '1.0-SNAPSHOT'
+                )
             }
         }
-		stage('Deploy War file to Tommcat'){
-            steps{
-               sshagent(['tomcat-credentials']) {
-                  sh """
-                    scp -o StrictHostKeyChecking=no target/*.war ubuntu@54.173.252.57:/opt/apache-tomcat-9.0.72/webapps
-                    ssh -o StrictHostKeyChecking=no ubuntu@54.173.252.57 /opt/apache-tomcat-9.0.72/bin/shutdown.sh
-                    ssh -o StrictHostKeyChecking=no ubuntu@54.173.252.57 /opt/apache-tomcat-9.0.72/bin/startup.sh
-					
-		          """          
-               }
+
+        stage('Deploy to Tomcat') {
+            steps {
+                bat """
+                "C:\\Program Files\\PuTTY\\pscp.exe" -batch -i C:\\JenkinsKeys\\id_rsa.ppk target\\hiring.war root@192.168.124.129:/opt/tomcat/webapps/
+                "C:\\Program Files\\PuTTY\\plink.exe" -batch -i C:\\JenkinsKeys\\id_rsa.ppk root@192.168.124.129 "/opt/tomcat/bin/shutdown.sh"
+                "C:\\Program Files\\PuTTY\\plink.exe" -batch -i C:\\JenkinsKeys\\id_rsa.ppk root@192.168.124.129 "/opt/tomcat/bin/startup.sh"
+                """
             }
         }
-    }   
- }
+    }
+
+    post {
+        success {
+            echo '✅ Build completed successfully.'
+        }
+        failure {
+            echo '❌ Build failed. Check logs for details.'
+        }
+    }
+}
+
