@@ -1,75 +1,52 @@
 pipeline {
     agent any
-
     tools {
-        maven 'maven-3.9'
-    }
-
-    environment {
-        REMOTE_USER = 'root'
-        REMOTE_HOST = '192.168.124.129'
-        REMOTE_TOMCAT = '/opt/tomcat'
+        maven 'Maven-3.8.6'
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('cloning repository') {
             steps {
                 git branch: 'main', url: 'https://github.com/puspaperam/chinna-app.git'
             }
         }
-
-        stage('Build with Maven') {
+         stage('build with files') {
             steps {
-                bat 'mvn clean package'
+                sh 'mvn clean install'
             }
         }
-
-        stage('SonarQube Analysis') {
+          stage('code quality') {
             steps {
-                withSonarQubeEnv('Sonar-Server-7.9') {
-                    bat 'mvn sonar:sonar'
-                }
+                sh 'mvn sonar:sonar -Dsonar.projectKey=chinna-app -Dsonar.host.url=http://192.168.124.129:9000 -Dsonar.login=ec2484599f2543b811aa88af7361ec308a5790ed'
             }
         }
-
-        stage('Upload WAR to Nexus') {
+         stage('upload files in artifactory') {
             steps {
-                nexusArtifactUploader(
-                    artifacts: [[
-                        artifactId: 'hiring',
-                        classifier: '',
-                        file: 'target/hiring.war',
-                        type: 'war'
-                    ]],
-                    credentialsId: 'NEXUS-3',
-                    groupId: 'in.javahome',
-                    nexusUrl: '192.168.124.129:8081',
-                    nexusVersion: 'nexus3',
-                    protocol: 'http',
-                    repository: 'puspa-apps',
-                    version: '1.0-SNAPSHOT'
-                )
-            }
+               nexusArtifactUploader artifacts: [[artifactId: 'hiring',
+               classifier: '',
+               file: 'target/hiring.war',
+               type: 'war']],
+               credentialsId: 'nexus3', 
+               groupId: 'in.javahome',
+               nexusUrl: '192.168.124.129:8081',
+               nexusVersion: 'nexus3', 
+               protocol: 'http',
+               repository: 'maven-snapshots',
+               version: 'nexus-3.0-SNAPSHOT'
+              
         }
-
-        stage('Deploy to Tomcat') {
-            steps {
-                bat """
-                "C:\\Program Files\\PuTTY\\pscp.exe" -batch -i C:\\JenkinsKeys\\id_rsa.ppk target\\hiring.war root@192.168.124.129:/opt/tomcat/webapps/
-                "C:\\Program Files\\PuTTY\\plink.exe" -batch -i C:\\JenkinsKeys\\id_rsa.ppk root@192.168.124.129 "/opt/tomcat/bin/shutdown.sh"
-                "C:\\Program Files\\PuTTY\\plink.exe" -batch -i C:\\JenkinsKeys\\id_rsa.ppk root@192.168.124.129 "/opt/tomcat/bin/startup.sh"
-                """
-            }
-        }
-    }
-
-    post {
-        success {
-            echo '✅ Build completed successfully.'
-        }
-        failure {
-            echo '❌ Build failed. Check logs for details.'
-        }
+           }
+           stage('deploying tomcat') {
+    steps {
+        bat """
+        "C:\\Program Files\\PuTTY\\pscp.exe" -batch -i C:\\JenkinsKeys\\id_rsa.ppk target\\hiring.war root@192.168.124.129:/opt/tomcat/webapps/
+        "C:\\Program Files\\PuTTY\\plink.exe" -batch -i C:\\JenkinsKeys\\id_rsa.ppk root@192.168.124.129 "/opt/tomcat/bin/shutdown.sh"
+        "C:\\Program Files\\PuTTY\\plink.exe" -batch -i C:\\JenkinsKeys\\id_rsa.ppk root@192.168.124.129 "/opt/tomcat/bin/startup.sh"
+        """
     }
 }
+
+            }
+        }
+  
 
